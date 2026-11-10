@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PM Wordle — Daily Agile & Product Management Game</title>
+
+    // Increments and counts total game launches
+fetch('https://api.countapi.xyz/hit/yourgithubusername-pm-wordle/launches')
+  .then(res => res.json())
+  .then(data => {
+    console.log(`Total Game Launches: ${data.value}`);
+  });
     <style>
         :root {
             --bg-color: #0f172a;

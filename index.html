@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PM Wordle — Daily Agile & Product Management Game</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --correct: #22c55e;
+            --present: #eab308;
+            --absent: #334155;
+            --border-color: #475569;
+            --accent-blue: #38bdf8;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-family);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 100vh;
+            padding: 10px;
+        }
+
+        header {
+            text-align: center;
+            padding: 12px 0 6px;
+            width: 100%;
+            max-width: 500px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        header h1 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            color: #ffffff;
+        }
+
+        header p {
+            font-size: 0.85rem;
+            color: var(--accent-blue);
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 500px;
+            margin: auto;
+        }
+
+        #board {
+            display: grid;
+            grid-template-rows: repeat(6, 1fr);
+            grid-gap: 6px;
+            padding: 10px;
+            width: 320px;
+            height: 380px;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-gap: 6px;
+        }
+
+        .tile {
+            width: 100%;
+            height: 100%;
+            border: 2px solid var(--border-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.6rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            user-select: none;
+            border-radius: 4px;
+            transition: transform 0.15s ease-in-out, background-color 0.15s ease;
+        }
+
+        .tile[data-state="pop"] {
+            transform: scale(1.08);
+            border-color: #94a3b8;
+        }
+
+        .tile[data-state="correct"] {
+            background-color: var(--correct);
+            border-color: var(--correct);
+            color: #ffffff;
+        }
+
+        .tile[data-state="present"] {
+            background-color: var(--present);
+            border-color: var(--present);
+            color: #ffffff;
+        }
+
+        .tile[data-state="absent"] {
+            background-color: var(--absent);
+            border-color: var(--absent);
+            color: var(--text-muted);
+        }
+
+        #keyboard {
+            width: 100%;
+            max-width: 480px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .kbd-row {
+            display: flex;
+            justify-content: center;
+            gap: 4px;
+            width: 100%;
+        }
+
+        .key {
+            background-color: var(--card-bg);
+            color: var(--text-main);
+            font-weight: 700;
+            font-size: 0.9rem;
+            border: none;
+            border-radius: 4px;
+            height: 52px;
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            text-transform: uppercase;
+            transition: background-color 0.2s ease;
+        }
+
+        .key.wide {
+            flex: 1.5;
+            font-size: 0.75rem;
+        }
+
+        .key[data-state="correct"] {
+            background-color: var(--correct);
+            color: #ffffff;
+        }
+
+        .key[data-state="present"] {
+            background-color: var(--present);
+            color: #ffffff;
+        }
+
+        .key[data-state="absent"] {
+            background-color: #1e293b;
+            color: #475569;
+            opacity: 0.6;
+        }
+
+        /* Modal / Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 24px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 420px;
+            text-align: center;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal h2 {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .modal p.definition {
+            font-size: 0.95rem;
+            color: #cbd5e1;
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 12px 0 16px;
+            text-align: left;
+            border-left: 3px solid var(--accent-blue);
+        }
+
+        .modal-btn {
+            background: #0284c7;
+            color: #ffffff;
+            border: none;
+            padding: 12px 20px;
+            font-size: 1rem;
+            font-weight: 700;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .modal-btn:hover {
+            background: #0369a1;
+        }
+
+        #toast {
+            position: fixed;
+            top: 15%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--text-main);
+            color: var(--bg-color);
+            padding: 10px 18px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            z-index: 200;
+        }
+
+        #toast.active {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>PM WORDLE</h1>
+        <p>DAILY PRODUCT MANAGEMENT SPRINT</p>
+    </header>
+
+    <div id="game-container">
+        <div id="board"></div>
+        <div id="keyboard"></div>
+    </div>
+
+    <div id="toast">Copied to clipboard!</div>
+
+    <!-- Game Over Modal -->
+    <div class="modal-overlay" id="modal">
+        <div class="modal">
+            <h2 id="modal-title">Sprint Retrospective</h2>
+            <p id="modal-word-container" style="margin-top: 4px; font-weight: 600; color: var(--accent-blue);"></p>
+            <p class="definition" id="modal-def"></p>
+            <button class="modal-btn" onclick="copyLinkedInScore()">
+                📋 Copy Score for LinkedIn
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Audited 30-day array of strictly 5-letter terms
+        const PM_WORDS = [
+            "SCOPE", "SCRUM", "CHURN", "TIERS", "STORY", 
+            "OWNER", "VALUE", "SPIKE", "CACHE", "USERS", 
+            "PATCH", "QUERY", "BUILD", "NEEDS", "PRDS", 
+            "ROLES", "PITCH", "SLACK", "SCALE", "PILOT", 
+            "GOALS", "AUDIT", "FIELD", "RATES", "TASKS", 
+            "GUIDE", "PRICE", "MERGE", "POINT", "USAGE"
+        ];
+
+        const DEFINITIONS = {
+            "SCOPE": "The defined boundaries of feature deliverables and requirements for a given release.",
+            "SCRUM": "An agile framework where teams deliver value through short, timeboxed iterations.",
+            "CHURN": "The rate at which customers cancel or stop using a product or service.",
+            "TIERS": "Monetization and packaging levels (e.g., Free, Pro, Enterprise) structured by feature access.",
+            "STORY": "The atomic unit of user-facing requirement specifying user intent and value.",
+            "OWNER": "The product leader responsible for maximizing product value and prioritizing backlogs.",
+            "VALUE": "The business return and customer benefit generated by shipped software.",
+            "SPIKE": "A timeboxed research task assigned to reduce technical risk before story point estimation.",
+            "CACHE": "A temporary high-speed data storage layer that improves system response times.",
+            "USERS": "The active user base interacting with the application and driving product metrics.",
+            "PATCH": "A targeted software update deployed to resolve critical bugs or defects.",
+            "QUERY": "A structured request used to retrieve and analyze specific data from database tables.",
+            "BUILD": "The compiled software asset packaged and readied for testing or deployment.",
+            "NEEDS": "Core user requirements and pain points that guide product discovery.",
+            "PRDS": "Product Requirement Documents detailing functional specifications and acceptance criteria.",
+            "ROLES": "Permission structures governing access control and privileges across application users.",
+            "PITCH": "The concise strategic presentation made to stakeholders to gain initiative buy-in.",
+            "SLACK": "Buffer capacity within a timeline (or the primary workplace chat tool).",
+            "SCALE": "Expanding application capacity and revenue volume without proportional costs.",
+            "PILOT": "A limited customer trial or beta run executed to validate value hypotheses.",
+            "GOALS": "Measurable objectives and outcomes driving team roadmap priorities.",
+            "AUDIT": "A formal evaluation of system security, regulatory compliance, or data integrity.",
+            "FIELD": "A single data attribute entry point within a database table schema or UI form.",
+            "RATES": "Ratios measuring conversion, activation, retention, and funnel velocity.",
+            "TASKS": "Granular technical sub-items broken down from parent user stories.",
+            "GUIDE": "Onboarding documentation and in-app walk-throughs designed for feature adoption.",
+            "PRICE": "The monetization value assigned to a product offering during market positioning.",
+            "MERGE": "Combining completed feature branch code into the primary software branch.",
+            "POINT": "An estimation unit measuring relative complexity and effort across backlog items.",
+            "USAGE": "Product engagement volume proving whether features deliver ongoing value."
+        };
+
+        // Get current day of the year (0-29 index loop)
+        const startDay = new Date(2026, 0, 1);
+        const today = new Date();
+        const diffDays = Math.floor((today - startDay) / (1000 * 60 * 60 * 24));
+        const dayIndex = Math.abs(diffDays) % PM_WORDS.length;
+
+        const TARGET_WORD = PM_WORDS[dayIndex];
+        const TARGET_DEF = DEFINITIONS[TARGET_WORD];
+
+        let currentRow = 0;
+        let currentTile = 0;
+        let isGameOver = false;
+        const boardState = Array(6).fill("").map(() => Array(5).fill(""));
+        const gridHistory = [];
+
+        // Initialize Board
+        const board = document.getElementById("board");
+        for (let r = 0; r < 6; r++) {
+            const rowDiv = document.createElement("div");
+            rowDiv.className = "row";
+            for (let c = 0; c < 5; c++) {
+                const tileDiv = document.createElement("div");
+                tileDiv.className = "tile";
+                tileDiv.id = `tile-${r}-${c}`;
+                rowDiv.appendChild(tileDiv);
+            }
+            board.appendChild(rowDiv);
+        }
+
+        // Initialize Keyboard
+        const keyboardKeys = [
+            ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
+            ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
+            ["ENTER", "Z", "X", "C", "V", "B", "N", "M", "DEL"]
+        ];
+
+        const keyboardContainer = document.getElementById("keyboard");
+        keyboardKeys.forEach(row => {
+            const rowDiv = document.createElement("div");
+            rowDiv.className = "kbd-row";
+            row.forEach(key => {
+                const btn = document.createElement("button");
+                btn.className = `key ${key.length > 1 ? 'wide' : ''}`;
+                btn.innerText = key;
+                btn.id = `key-${key}`;
+                btn.addEventListener("click", () => handleKeyPress(key));
+                rowDiv.appendChild(btn);
+            });
+            keyboardContainer.appendChild(rowDiv);
+        });
+
+        // Listen for Physical Keyboard
+        document.addEventListener("keydown", (e) => {
+            if (isGameOver) return;
+            if (e.key === "Enter") handleKeyPress("ENTER");
+            else if (e.key === "Backspace") handleKeyPress("DEL");
+            else if (/^[a-zA-Z]$/.test(e.key)) handleKeyPress(e.key.toUpperCase());
+        });
+
+        function handleKeyPress(key) {
+            if (isGameOver) return;
+
+            if (key === "DEL") {
+                if (currentTile > 0) {
+                    currentTile--;
+                    boardState[currentRow][currentTile] = "";
+                    const tile = document.getElementById(`tile-${currentRow}-${currentTile}`);
+                    tile.innerText = "";
+                    tile.removeAttribute("data-state");
+                }
+            } else if (key === "ENTER") {
+                if (currentTile === 5) {
+                    checkRow();
+                } else {
+                    showToast("Not enough letters");
+                }
+            } else if (currentTile < 5) {
+                boardState[currentRow][currentTile] = key;
+                const tile = document.getElementById(`tile-${currentRow}-${currentTile}`);
+                tile.innerText = key;
+                tile.setAttribute("data-state", "pop");
+                currentTile++;
+            }
+        }
+
+        function checkRow() {
+            const guess = boardState[currentRow].join("");
+            const targetArr = TARGET_WORD.split("");
+            const rowEmoji = [];
+
+            // Letter status evaluations
+            const tileStates = Array(5).fill("absent");
+            const letterCounts = {};
+
+            targetArr.forEach(l => letterCounts[l] = (letterCounts[l] || 0) + 1);
+
+            // First Pass: Correct
+            for (let i = 0; i < 5; i++) {
+                if (guess[i] === targetArr[i]) {
+                    tileStates[i] = "correct";
+                    letterCounts[guess[i]]--;
+                }
+            }
+
+            // Second Pass: Present
+            for (let i = 0; i < 5; i++) {
+                if (tileStates[i] !== "correct" && letterCounts[guess[i]] > 0) {
+                    tileStates[i] = "present";
+                    letterCounts[guess[i]]--;
+                }
+            }
+
+            // Apply updates to UI
+            for (let i = 0; i < 5; i++) {
+                const tile = document.getElementById(`tile-${currentRow}-${i}`);
+                const letter = guess[i];
+                const state = tileStates[i];
+
+                tile.setAttribute("data-state", state);
+
+                const kbdKey = document.getElementById(`key-${letter}`);
+                if (kbdKey) {
+                    const currentState = kbdKey.getAttribute("data-state");
+                    if (state === "correct" || (state === "present" && currentState !== "correct")) {
+                        kbdKey.setAttribute("data-state", state);
+                    } else if (!currentState) {
+                        kbdKey.setAttribute("data-state", state);
+                    }
+                }
+
+                if (state === "correct") rowEmoji.push("🟩");
+                else if (state === "present") rowEmoji.push("🟨");
+                else rowEmoji.push("⬛");
+            }
+
+            gridHistory.push(rowEmoji.join(""));
+
+            if (guess === TARGET_WORD) {
+                isGameOver = true;
+                setTimeout(() => showModal(true), 600);
+            } else if (currentRow === 5) {
+                isGameOver = true;
+                setTimeout(() => showModal(false), 600);
+            } else {
+                currentRow++;
+                currentTile = 0;
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById("toast");
+            toast.innerText = msg;
+            toast.classList.add("active");
+            setTimeout(() => toast.classList.remove("active"), 1500);
+        }
+
+        function showModal(isWin) {
+            const modal = document.getElementById("modal");
+            document.getElementById("modal-title").innerText = isWin ? "Sprint Completed! 🎉" : "Sprint Retrospective 📋";
+            document.getElementById("modal-word-container").innerText = `Target Word: ${TARGET_WORD}`;
+            document.getElementById("modal-def").innerText = TARGET_DEF;
+            modal.classList.add("active");
+        }
+
+        function copyLinkedInScore() {
+            const tries = isGameOver && boardState[currentRow].join("") === TARGET_WORD ? currentRow + 1 : "X";
+            const scoreText = `PM Wordle Sprint #${dayIndex + 1} (${tries}/6)\n\n${gridHistory.join("\n")}\n\nPlay today's daily PM Sprint: [YOUR_LINK_HERE]\n#ProductManagement #Agile #Scrum #ProductOwner`;
+            
+            navigator.clipboard.writeText(scoreText).then(() => {
+                showToast("Copied to clipboard!");
+            });
+        }
+    </script>
+</body>
+</html>
